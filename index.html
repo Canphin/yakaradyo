@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>YAKA RADYO</title>
+    <meta name="application-name" content="YAKA RADYO">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="YAKA RADYO">
+    <meta name="theme-color" content="#0a0a12">
+    <meta name="description" content="Yaka Radyo — Türkçe Cyberpunk Radio Terminal">
+    <link rel="manifest" id="pwaManifest">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --cyan:     #00f5ff;
+            --magenta:  #ff00cc;
+            --green:    #00ff88;
+            --yellow:   #ffe600;
+            --dark-bg:  #06060f;
+            --panel-bg: rgba(8, 12, 28, 0.85);
+            --border:   rgba(0, 245, 255, 0.22);
+            --border-hot: rgba(255, 0, 204, 0.45);
+            --text-primary: #e0f7ff;
+            --text-dim: rgba(0, 245, 255, 0.45);
+            --glow-c:   0 0 18px rgba(0, 245, 255, 0.4);
+            --glow-m:   0 0 18px rgba(255, 0, 204, 0.4);
+            --font-mono:    'Share Tech Mono', monospace;
+            --font-display: 'Orbitron', monospace;
+            --font-body:    'Rajdhani', sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-body);
+            min-height: 100vh;
+            background: var(--dark-bg);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Scanlines */
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent, transparent 2px,
+                rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px
+            );
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* Particle Canvas */
+        #particleCanvas {
+            position: fixed; inset: 0;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Background */
+        .bg-layer {
+            position: fixed; inset: 0; z-index: 0; overflow: hidden;
+        }
+        .bg-layer::before {
+            content: '';
+            position: absolute; inset: 0;
+            background:
+                radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0,120,200,0.12) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 50% at 80% 80%, rgba(200,0,150,0.10) 0%, transparent 60%),
+                radial-gradient(ellipse 100% 80% at 50% 50%, rgba(5,5,20,1) 30%, transparent 100%);
+            animation: bgShift 14s ease-in-out infinite alternate;
+        }
+        @keyframes bgShift {
+            0%   { filter: hue-rotate(0deg) brightness(1); }
+            100% { filter: hue-rotate(25deg) brightness(1.08); }
+        }
+        .bg-img {
+            position: absolute; inset: 0;
+            background-size: cover;
+            background-position: center;
+            opacity: 0.06;
+            transition: background-image 1.2s;
+        }
+        .bg-layer::after {
+            content: '';
+            position: absolute; inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .container {
+            position: relative; z-index: 10;
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 18px 14px 40px;
+        }
+
+        /* ── HEADER ── */
+        .header {
+            text-align: center;
+            padding: 22px 0 20px;
+        }
+        .header-eyebrow {
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            letter-spacing: 6px;
+            margin-bottom: 12px;
+        }
+
+        /* ── CLOCK ── */
+        .clock-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            margin-bottom: 14px;
+            font-family: var(--font-mono);
+        }
+        .clock-time {
+            font-size: clamp(1.6rem, 6vw, 2.8rem);
+            font-family: var(--font-display);
+            font-weight: 700;
+            color: var(--cyan);
+            letter-spacing: 6px;
+            text-shadow: 0 0 20px rgba(0,245,255,0.5), 0 0 40px rgba(0,245,255,0.2);
+            animation: clockGlow 2s ease-in-out infinite alternate;
+        }
+        @keyframes clockGlow {
+            0%   { text-shadow: 0 0 12px rgba(0,245,255,0.4); }
+            100% { text-shadow: 0 0 28px rgba(0,245,255,0.8), 0 0 50px rgba(0,245,255,0.3); }
+        }
+        .clock-colon {
+            animation: colonBlink 1s step-end infinite;
+        }
+        @keyframes colonBlink { 0%,100%{opacity:1} 50%{opacity:0.1} }
+        .clock-date {
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .logo-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+            background: linear-gradient(135deg, rgba(0,245,255,0.04), rgba(255,0,204,0.04));
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 24px 10px 18px;
+            position: relative;
+            overflow: hidden;
+        }
+        .logo-wrap::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 55%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0,245,255,0.05), transparent);
+            animation: sheen 5s ease-in-out infinite;
+        }
+        @keyframes sheen { 0%{left:-100%} 60%{left:160%} 100%{left:160%} }
+
+        .logo-icon { width: 42px; height: 42px; flex-shrink: 0; }
+        .logo-text-block {
+            display: flex; flex-direction: column;
+            align-items: flex-start; gap: 2px;
+        }
+        .logo-main {
+            font-family: var(--font-display);
+            font-size: clamp(1.45rem, 5vw, 2.3rem);
+            font-weight: 900;
+            letter-spacing: clamp(4px, 2vw, 11px);
+            white-space: nowrap;
+            background: linear-gradient(90deg, var(--cyan) 0%, #ffffff 45%, var(--magenta) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: logoGlow 2.5s ease-in-out infinite alternate;
+        }
+        @keyframes logoGlow {
+            0%   { filter: drop-shadow(0 0 5px rgba(0,245,255,0.25)); }
+            100% { filter: drop-shadow(0 0 14px rgba(255,0,204,0.45)); }
+        }
+        .logo-sub {
+            font-family: var(--font-mono);
+            font-size: 0.58rem;
+            color: var(--text-dim);
+            letter-spacing: 4px;
+        }
+        .signal-bars {
+            display: flex; align-items: flex-end; gap: 3px; height: 20px;
+        }
+        .signal-bars span {
+            width: 4px; border-radius: 2px;
+            background: var(--cyan);
+            animation: barPulse 1.3s ease-in-out infinite alternate;
+        }
+        .signal-bars span:nth-child(1){height:5px;  animation-delay:0s;}
+        .signal-bars span:nth-child(2){height:9px;  animation-delay:.15s;}
+        .signal-bars span:nth-child(3){height:15px; animation-delay:.3s;}
+        .signal-bars span:nth-child(4){height:9px;  animation-delay:.45s;}
+        .signal-bars span:nth-child(5){height:5px;  animation-delay:.6s;}
+        @keyframes barPulse {
+            0%   { opacity: 0.25; }
+            100% { opacity: 1; box-shadow: 0 0 7px var(--cyan); }
+        }
+
+        .divider {
+            width: 100%; height: 1px; margin-bottom: 18px;
+            background: linear-gradient(90deg, transparent, var(--cyan), var(--magenta), transparent);
+            opacity: 0.35;
+        }
+
+        /* ── VISUALIZER ── */
+        .visualizer-wrap {
+            width: 100%;
+            margin-bottom: 14px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: rgba(4,8,22,0.7);
+            position: relative;
+        }
+        #visualizerCanvas {
+            width: 100%;
+            height: 80px;
+            display: block;
+        }
+        .visualizer-label {
+            position: absolute;
+            top: 6px; left: 10px;
+            font-family: var(--font-mono);
+            font-size: 0.5rem;
+            color: var(--text-dim);
+            letter-spacing: 3px;
+        }
+        .visualizer-mode-btn {
+            position: absolute;
+            top: 4px; right: 8px;
+            background: none;
+            border: 1px solid rgba(0,245,255,0.2);
+            border-radius: 4px;
+            padding: 2px 7px;
+            font-family: var(--font-mono);
+            font-size: 0.48rem;
+            color: var(--text-dim);
+            cursor: pointer;
+            letter-spacing: 2px;
+            transition: all .2s;
+        }
+        .visualizer-mode-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+        /* ── NOW PLAYING ── */
+        .np-card {
+            background: var(--panel-bg);
+            backdrop-filter: blur(22px);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 20px 18px;
+            margin-bottom: 14px;
+            position: relative; overflow: hidden;
+        }
+        .np-card::before {
+            content: '';
+            position: absolute; top: 0; left: 0;
+            width: 3px; height: 100%;
+            background: linear-gradient(180deg, var(--cyan), var(--magenta));
+        }
+        .np-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .np-info { flex: 1; min-width: 0; }
+        .np-label {
+            font-family: var(--font-mono);
+            font-size: 0.57rem;
+            color: var(--text-dim);
+            letter-spacing: 4px;
+            margin-bottom: 4px;
+        }
+        .np-name {
+            font-family: var(--font-display);
+            font-size: clamp(0.95rem, 3vw, 1.45rem);
+            font-weight: 700;
+            color: var(--magenta);
+            text-shadow: 0 0 10px rgba(255,0,204,0.35);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .np-meta {
+            display: flex; gap: 16px;
+            margin-top: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.67rem;
+            color: var(--text-dim);
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        /* Equalizer bars next to station name */
+        .eq-bars {
+            display: flex; align-items: flex-end; gap: 2px; height: 16px;
+            opacity: 0;
+            transition: opacity .3s;
+        }
+        .eq-bars.active { opacity: 1; }
+        .eq-bar {
+            width: 3px; border-radius: 1px;
+            background: var(--magenta);
+            animation: eqAnim 0.5s ease-in-out infinite alternate;
+        }
+        .eq-bar:nth-child(1){height:40%; animation-duration:.4s; animation-delay:0s;}
+        .eq-bar:nth-child(2){height:80%; animation-duration:.55s; animation-delay:.1s;}
+        .eq-bar:nth-child(3){height:60%; animation-duration:.45s; animation-delay:.2s;}
+        .eq-bar:nth-child(4){height:100%;animation-duration:.6s; animation-delay:.05s;}
+        .eq-bar:nth-child(5){height:55%; animation-duration:.5s; animation-delay:.15s;}
+        .eq-bar:nth-child(6){height:75%; animation-duration:.42s; animation-delay:.25s;}
+        @keyframes eqAnim {
+            0%   { transform: scaleY(0.2); opacity: 0.5; }
+            100% { transform: scaleY(1);   opacity: 1; box-shadow: 0 0 4px var(--magenta); }
+        }
+
+        .live-dot {
+            display: inline-block;
+            width: 6px; height: 6px;
+            background: var(--green);
+            border-radius: 50%;
+            margin-right: 5px;
+            animation: livePulse 1s ease-in-out infinite;
+            box-shadow: 0 0 7px var(--green);
+            vertical-align: middle;
+        }
+        @keyframes livePulse {
+            0%,100%{opacity:.3; transform:scale(.8);}
+            50%    {opacity:1;  transform:scale(1.15);}
+        }
+
+        /* Controls */
+        .controls-row {
+            display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+        }
+        .ctrl-btn {
+            width: 46px; height: 46px; border-radius: 50%;
+            background: rgba(0,245,255,0.04);
+            border: 1.5px solid var(--cyan);
+            color: var(--cyan);
+            font-size: 1rem; cursor: pointer;
+            transition: all .2s;
+            display: flex; align-items: center; justify-content: center;
+            position: relative;
+        }
+        .ctrl-btn:hover {
+            background: rgba(0,245,255,0.1);
+            border-color: var(--magenta); color: var(--magenta);
+            box-shadow: var(--glow-m); transform: scale(1.08);
+        }
+        .ctrl-btn.play-main {
+            width: 52px; height: 52px;
+            border-color: var(--magenta); color: var(--magenta);
+            font-size: 1.2rem;
+            box-shadow: var(--glow-m);
+        }
+        .ctrl-btn.play-main:hover { background: rgba(255,0,204,0.12); }
+        .ctrl-btn.random-btn {
+            border-color: var(--yellow); color: var(--yellow);
+        }
+        .ctrl-btn.random-btn:hover {
+            border-color: var(--yellow); color: var(--yellow);
+            box-shadow: 0 0 18px rgba(255,230,0,0.4);
+        }
+
+        /* Tooltip */
+        .ctrl-btn[data-tip]::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: -26px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.85);
+            border: 1px solid var(--border);
+            color: var(--cyan);
+            font-family: var(--font-mono);
+            font-size: 0.45rem;
+            letter-spacing: 1px;
+            padding: 3px 7px; border-radius: 4px;
+            white-space: nowrap;
+            opacity: 0; pointer-events: none;
+            transition: opacity .2s;
+            z-index: 100;
+        }
+        .ctrl-btn[data-tip]:hover::after { opacity: 1; }
+
+        .vol-wrap {
+            display: flex; align-items: center; gap: 7px; margin-left: auto;
+        }
+        .vol-icon { color: var(--text-dim); font-size: 0.8rem; }
+        .vol-slider {
+            -webkit-appearance: none;
+            width: 85px; height: 3px;
+            background: rgba(0,245,255,0.18);
+            border-radius: 10px; outline: none;
+        }
+        .vol-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 11px; height: 11px; border-radius: 50%;
+            background: var(--magenta); cursor: pointer;
+            box-shadow: 0 0 7px var(--magenta);
+        }
+        .vol-val {
+            font-family: var(--font-mono);
+            font-size: 0.58rem; color: var(--text-dim); min-width: 28px;
+        }
+
+        /* Progress / Signal */
+        .progress-labels {
+            display: flex; justify-content: space-between;
+            font-family: var(--font-mono);
+            font-size: 0.57rem; color: var(--text-dim);
+            margin-bottom: 5px;
+        }
+        .progress-track {
+            width: 100%; height: 5px;
+            background: rgba(0,245,255,0.07);
+            border-radius: 10px; overflow: hidden;
+            border: 1px solid rgba(0,245,255,0.08);
+        }
+        .progress-fill {
+            height: 100%; width: 0%;
+            border-radius: 10px;
+            background: linear-gradient(90deg, var(--cyan), var(--magenta));
+            transition: width .35s ease;
+            position: relative;
+        }
+        .progress-fill::after {
+            content: '';
+            position: absolute; right: 0; top: 0;
+            width: 16px; height: 100%;
+            background: white; filter: blur(5px); opacity: 0.4;
+        }
+        .signal-strip {
+            display: flex; gap: 2px; margin-top: 7px;
+        }
+        .sig-seg {
+            flex: 1; height: 4px; border-radius: 2px;
+            background: rgba(0,245,255,0.08);
+            transition: background .25s, box-shadow .25s;
+        }
+        .sig-seg.active          { background: var(--cyan);    box-shadow: 0 0 5px var(--cyan); }
+        .sig-seg.active.hot      { background: var(--magenta); box-shadow: 0 0 5px var(--magenta); }
+
+        /* ── PANEL ── */
+        .panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(18px);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 14px;
+        }
+        .panel-title {
+            font-family: var(--font-mono);
+            font-size: 0.58rem; color: var(--text-dim);
+            letter-spacing: 5px; text-transform: uppercase;
+            margin-bottom: 13px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .panel-title::after {
+            content: ''; flex: 1; height: 1px;
+            background: var(--border);
+        }
+
+        /* Search */
+        .search-row {
+            display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;
+        }
+        .search-input {
+            flex: 1; min-width: 130px;
+            background: rgba(0,8,22,0.7);
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 16px;
+            color: var(--cyan);
+            font-family: var(--font-mono); font-size: 0.77rem;
+            outline: none;
+            transition: border-color .2s, box-shadow .2s;
+        }
+        .search-input:focus { border-color: var(--magenta); box-shadow: var(--glow-m); }
+        .search-input::placeholder { color: rgba(0,245,255,0.22); }
+
+        .btn {
+            background: transparent;
+            border: 1.5px solid var(--cyan); border-radius: 8px;
+            padding: 10px 18px;
+            color: var(--cyan);
+            font-family: var(--font-mono); font-size: 0.7rem;
+            letter-spacing: 2px; cursor: pointer;
+            transition: all .2s; white-space: nowrap;
+        }
+        .btn:hover {
+            background: rgba(0,245,255,0.07);
+            border-color: var(--magenta); color: var(--magenta);
+            box-shadow: var(--glow-m);
+        }
+        .btn.accent { border-color: var(--magenta); color: var(--magenta); }
+        .btn.accent:hover { background: rgba(255,0,204,0.08); }
+
+        .select-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .custom-select {
+            flex: 1; min-width: 150px;
+            background: rgba(0,8,22,0.7);
+            border: 1.5px solid var(--border); border-radius: 8px;
+            padding: 10px 14px;
+            color: var(--cyan);
+            font-family: var(--font-mono); font-size: 0.73rem;
+            cursor: pointer; outline: none;
+            transition: border-color .2s;
+        }
+        .custom-select:focus { border-color: var(--magenta); }
+        .custom-select option { background: #06060f; }
+
+        /* Count bar */
+        .count-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 10px;
+            font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-dim);
+        }
+        .count-val { color: var(--cyan); }
+
+        /* Tabs for All / Favorites */
+        .tab-row {
+            display: flex; gap: 8px; margin-bottom: 12px;
+        }
+        .tab-btn {
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 16px;
+            font-family: var(--font-mono);
+            font-size: 0.62rem;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: all .2s;
+        }
+        .tab-btn.active {
+            border-color: var(--cyan);
+            color: var(--cyan);
+            background: rgba(0,245,255,0.06);
+        }
+        .tab-btn:hover:not(.active) {
+            border-color: rgba(0,245,255,0.35);
+            color: rgba(0,245,255,0.7);
+        }
+
+        /* Radio grid */
+        .radio-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+            gap: 9px;
+            max-height: 420px;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
+        .radio-grid::-webkit-scrollbar { width: 4px; }
+        .radio-grid::-webkit-scrollbar-track { background: rgba(0,245,255,0.04); border-radius: 4px; }
+        .radio-grid::-webkit-scrollbar-thumb { background: rgba(0,245,255,0.25); border-radius: 4px; }
+
+        .radio-card {
+            background: rgba(4,8,22,0.7);
+            border: 1px solid rgba(0,245,255,0.1);
+            border-radius: 9px;
+            padding: 11px 13px;
+            cursor: pointer;
+            transition: all .22s;
+            display: flex; align-items: center; gap: 11px;
+            position: relative; overflow: hidden;
+        }
+        .radio-card::before {
+            content: '';
+            position: absolute; left: 0; top: 0;
+            width: 2px; height: 0;
+            background: var(--cyan);
+            transition: height .22s;
+        }
+        .radio-card:hover::before { height: 100%; }
+        .radio-card:hover {
+            border-color: rgba(0,245,255,0.28);
+            background: rgba(0,245,255,0.03);
+            transform: translateX(3px);
+        }
+        .radio-card.active {
+            border-color: var(--magenta);
+            background: rgba(255,0,204,0.05);
+            box-shadow: 0 0 18px rgba(255,0,204,0.12);
+        }
+        .radio-card.active::before { background: var(--magenta); height: 100%; }
+
+        .card-icon {
+            width: 38px; height: 38px; border-radius: 7px;
+            background: linear-gradient(135deg, rgba(0,245,255,0.12), rgba(255,0,204,0.08));
+            border: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            font-family: var(--font-display); font-size: 1rem; font-weight: 700;
+            color: var(--cyan); flex-shrink: 0;
+            transition: all .22s;
+        }
+        .radio-card.active .card-icon {
+            color: var(--magenta); border-color: var(--magenta);
+            box-shadow: 0 0 10px rgba(255,0,204,0.25);
+        }
+        .card-info { flex: 1; min-width: 0; }
+        .card-name {
+            font-family: var(--font-body); font-weight: 600;
+            font-size: 0.88rem; color: var(--text-primary);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            letter-spacing: 0.4px;
+        }
+        .radio-card.active .card-name { color: var(--magenta); }
+        .card-bitrate {
+            font-family: var(--font-mono); font-size: 0.6rem;
+            color: var(--text-dim); margin-top: 2px;
+        }
+
+        /* Fav button on card */
+        .fav-btn {
+            background: none; border: none;
+            color: rgba(255,0,204,0.25);
+            font-size: 0.9rem; cursor: pointer;
+            flex-shrink: 0;
+            transition: all .2s;
+            padding: 4px;
+            border-radius: 4px;
+        }
+        .fav-btn:hover { color: var(--magenta); transform: scale(1.15); }
+        .fav-btn.faved { color: var(--magenta); text-shadow: 0 0 8px var(--magenta); }
+
+        /* Loading */
+        .loading-msg {
+            text-align: center; padding: 38px 20px;
+            font-family: var(--font-mono); font-size: 0.72rem;
+            color: var(--text-dim); letter-spacing: 3px;
+            grid-column: 1/-1;
+        }
+        .spinner {
+            display: inline-block; width: 16px; height: 16px;
+            border: 2px solid rgba(0,245,255,0.1);
+            border-top-color: var(--cyan);
+            border-radius: 50%;
+            animation: spin .75s linear infinite;
+            margin-bottom: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── KEYBOARD SHORTCUTS PANEL ── */
+        .shortcuts-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(18px);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 18px;
+            margin-bottom: 14px;
+        }
+        .shortcuts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 8px;
+        }
+        .shortcut-item {
+            display: flex; align-items: center; gap: 10px;
+            font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-dim);
+        }
+        .key-badge {
+            background: rgba(0,245,255,0.06);
+            border: 1px solid rgba(0,245,255,0.25);
+            border-radius: 4px;
+            padding: 2px 7px;
+            color: var(--cyan);
+            font-size: 0.58rem;
+            letter-spacing: 1px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        /* Toast notification */
+        #toast {
+            position: fixed;
+            bottom: 80px; left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(6,8,22,0.96);
+            border: 1px solid var(--cyan);
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            color: var(--cyan);
+            letter-spacing: 2px;
+            z-index: 9995;
+            opacity: 0;
+            transition: all .35s;
+            pointer-events: none;
+            box-shadow: var(--glow-c);
+            white-space: nowrap;
+        }
+        #toast.show {
+            opacity: 1; transform: translateX(-50%) translateY(0);
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center; padding-top: 20px;
+            display: flex; flex-direction: column; align-items: center; gap: 5px;
+        }
+        .footer-line {
+            width: 140px; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+            margin-bottom: 3px;
+        }
+        .footer-text {
+            font-family: var(--font-mono); font-size: 0.56rem;
+            color: rgba(0,245,255,0.22); letter-spacing: 4px;
+        }
+        .signature {
+            font-family: var(--font-mono); font-size: 0.54rem;
+            color: rgba(255,0,204,0.28); letter-spacing: 3px;
+            font-style: italic;
+        }
+
+        /* PWA Banner */
+        #installBanner {
+            display: none;
+            position: fixed; bottom: 14px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(6,8,22,0.96);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 11px 16px;
+            backdrop-filter: blur(20px);
+            z-index: 9990;
+            font-family: var(--font-mono); font-size: 0.68rem;
+            color: var(--cyan);
+            align-items: center; gap: 12px;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.55), var(--glow-c);
+            max-width: 92vw;
+        }
+        #installBanner.show { display: flex; }
+        .install-btn {
+            background: linear-gradient(90deg, var(--cyan), var(--magenta));
+            border: none; border-radius: 6px;
+            padding: 6px 13px; color: #000;
+            font-family: var(--font-mono); font-size: 0.63rem;
+            font-weight: 700; cursor: pointer; letter-spacing: 2px; white-space: nowrap;
+        }
+        .install-dismiss {
+            background: none; border: none;
+            color: var(--text-dim); cursor: pointer; font-size: 1rem;
+        }
+
+        @media (max-width: 580px) {
+            .container { padding: 12px 9px 28px; }
+            .logo-main  { font-size: 1.3rem; letter-spacing: 4px; }
+            .vol-wrap   { margin-left: 0; }
+            .clock-time { font-size: 1.4rem; letter-spacing: 4px; }
+            #visualizerCanvas { height: 60px; }
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="particleCanvas"></canvas>
+
+<div class="bg-layer">
+    <div class="bg-img" id="bgImg"></div>
+</div>
+
+<div class="container">
+
+    <!-- HEADER -->
+    <div class="header">
+        <div class="header-eyebrow">// TÜRKÇE RADYO TERMİNALİ //</div>
+
+        <!-- CLOCK -->
+        <div class="clock-bar">
+            <div>
+                <div class="clock-time" id="clockTime">00<span class="clock-colon">:</span>00<span class="clock-colon">:</span>00</div>
+                <div class="clock-date" id="clockDate">YÜKLENIYOR...</div>
+            </div>
+        </div>
+
+        <div class="logo-wrap">
+            <svg class="logo-icon" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="42" height="42" rx="7" fill="rgba(0,245,255,0.05)" stroke="rgba(0,245,255,0.18)" stroke-width="1"/>
+                <line x1="21" y1="5" x2="13" y2="15" stroke="#00f5ff" stroke-width="1.7" stroke-linecap="round"/>
+                <circle cx="21" cy="5" r="2" fill="#ff00cc"/>
+                <rect x="6" y="15" width="30" height="19" rx="4" stroke="#00f5ff" stroke-width="1.4" fill="rgba(0,10,28,0.85)"/>
+                <circle cx="12" cy="22" r="1.1" fill="rgba(0,245,255,0.4)"/>
+                <circle cx="12" cy="27" r="1.1" fill="rgba(0,245,255,0.4)"/>
+                <circle cx="15" cy="24.5" r="1.1" fill="rgba(0,245,255,0.4)"/>
+                <rect x="18" y="18" width="14" height="10" rx="2" stroke="rgba(255,0,204,0.45)" stroke-width="1" fill="rgba(255,0,204,0.04)"/>
+                <path d="M20 23 Q22 21 24 23 Q26 25 28 23" stroke="#ff00cc" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+                <circle cx="9" cy="21" r="2.3" stroke="#00f5ff" stroke-width="1" fill="rgba(0,245,255,0.08)"/>
+            </svg>
+            <div class="logo-text-block">
+                <div class="logo-main">YAKA&nbsp;RADYO</div>
+                <div class="logo-sub">NEON FREKANSLAR</div>
+            </div>
+            <div class="signal-bars">
+                <span></span><span></span><span></span><span></span><span></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- AUDIO VISUALIZER -->
+    <div class="visualizer-wrap">
+        <span class="visualizer-label">// FREKANS ANALİZÖRÜ</span>
+        <button class="visualizer-mode-btn" id="vizModeBtn">BARS</button>
+        <canvas id="visualizerCanvas"></canvas>
+    </div>
+
+    <!-- NOW PLAYING -->
+    <div class="np-card">
+        <div class="np-top">
+            <div class="np-info">
+                <div class="np-label">// ŞU AN ÇALIYOR</div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="np-name" id="currentStationName">RADYO SEÇİLMEDİ</div>
+                    <div class="eq-bars" id="eqBars">
+                        <div class="eq-bar"></div>
+                        <div class="eq-bar"></div>
+                        <div class="eq-bar"></div>
+                        <div class="eq-bar"></div>
+                        <div class="eq-bar"></div>
+                        <div class="eq-bar"></div>
+                    </div>
+                </div>
+                <div class="np-meta">
+                    <span>
+                        <span class="live-dot" id="liveDot" style="display:none"></span>
+                        <span id="streamStatus">HAZIR</span>
+                    </span>
+                    <span>
+                        <i class="fas fa-wifi" style="opacity:.45;font-size:.62rem;"></i>&nbsp;
+                        <span id="bitrateInfo">-- kbps</span>
+                    </span>
+                    <span id="listenTimer" style="display:none;">
+                        <i class="fas fa-clock" style="opacity:.45;font-size:.62rem;"></i>&nbsp;
+                        <span id="listenTime">00:00</span>
+                    </span>
+                </div>
+            </div>
+            <div class="controls-row">
+                <button class="ctrl-btn play-main" id="playBtn" data-tip="OYNAT [SPACE]"><i class="fas fa-play"></i></button>
+                <button class="ctrl-btn" id="stopBtn" data-tip="DURDUR [S]"><i class="fas fa-stop"></i></button>
+                <button class="ctrl-btn random-btn" id="randomBtn" data-tip="RASTGELE [R]"><i class="fas fa-random"></i></button>
+                <div class="vol-wrap">
+                    <i class="fas fa-volume-down vol-icon"></i>
+                    <input type="range" id="volumeControl" class="vol-slider" min="0" max="1" step="0.01" value="0.7">
+                    <span class="vol-val" id="volVal">70%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Signal / Progress -->
+        <div class="progress-section">
+            <div class="progress-labels">
+                <span>SİNYAL GÜCÜ</span>
+                <span id="progressPct">—</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="signal-strip" id="signalStrip"></div>
+        </div>
+    </div>
+
+    <!-- SEARCH & SELECT -->
+    <div class="panel">
+        <div class="panel-title">
+            <i class="fas fa-satellite-dish" style="color:var(--magenta)"></i>&nbsp;RADYO BAĞLANTI
+        </div>
+        <div class="search-row">
+            <input type="text" id="searchInput" class="search-input"
+                   placeholder="RADYO ARA... (Kral, Power, Metro...)">
+            <button id="searchAddBtn" class="btn accent">
+                <i class="fas fa-plus"></i>&nbsp;ARA &amp; EKLE
+            </button>
+        </div>
+        <div class="select-row">
+            <select id="radioSelect" class="custom-select">
+                <option value="">📡 RADYO SEÇ</option>
+            </select>
+            <button id="playSelectedBtn" class="btn">
+                <i class="fas fa-headphones"></i>&nbsp;ÇAL
+            </button>
+        </div>
+    </div>
+
+    <!-- LIST -->
+    <div class="count-bar">
+        <span>// RADYO LİSTESİ</span>
+        <span class="count-val" id="resultCount"></span>
+    </div>
+
+    <!-- TABS -->
+    <div class="tab-row">
+        <button class="tab-btn active" id="tabAll" onclick="switchTab('all')">
+            <i class="fas fa-broadcast-tower"></i>&nbsp; TÜM RADYOLAR
+        </button>
+        <button class="tab-btn" id="tabFav" onclick="switchTab('fav')">
+            <i class="fas fa-heart"></i>&nbsp; FAVORİLER
+            <span id="favCount" style="margin-left:5px;color:var(--magenta);"></span>
+        </button>
+    </div>
+
+    <div class="radio-grid" id="radioListContainer">
+        <div class="loading-msg">
+            <div class="spinner"></div><br>RADYOLAR YÜKLENİYOR...
+        </div>
+    </div>
+
+    <!-- KEYBOARD SHORTCUTS -->
+    <div class="shortcuts-panel" style="margin-top:14px;">
+        <div class="panel-title">
+            <i class="fas fa-keyboard" style="color:var(--cyan)"></i>&nbsp;KLAVYE KISAYOLLARI
+        </div>
+        <div class="shortcuts-grid">
+            <div class="shortcut-item"><span class="key-badge">SPACE</span> Oynat / Durdur</div>
+            <div class="shortcut-item"><span class="key-badge">S</span> Durdur</div>
+            <div class="shortcut-item"><span class="key-badge">R</span> Rastgele Radyo</div>
+            <div class="shortcut-item"><span class="key-badge">↑ / ↓</span> Ses Aç / Kıs</div>
+            <div class="shortcut-item"><span class="key-badge">F</span> Favoriye Ekle / Çıkar</div>
+            <div class="shortcut-item"><span class="key-badge">N</span> Sonraki Radyo</div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+        <div class="footer-line"></div>
+        <div class="footer-text">YAKA RADYO &nbsp;·&nbsp; CYBERPUNK TERMINAL &nbsp;·&nbsp; v4.0</div>
+        <div class="signature">edit by Can</div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- PWA Install Banner -->
+<div id="installBanner">
+    <span>📲 Ana ekrana ekle</span>
+    <button class="install-btn" id="installBtn">EKLE</button>
+    <button class="install-dismiss" id="dismissInstall">✕</button>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  PWA MANIFEST
+// ══════════════════════════════════════════════
+(function(){
+    const iconSvg192 = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='30' fill='%2306060f'/><rect x='8' y='8' width='176' height='176' rx='24' fill='none' stroke='%2300f5ff' stroke-width='2' opacity='0.3'/><line x1='96' y1='20' x2='60' y2='56' stroke='%2300f5ff' stroke-width='7' stroke-linecap='round'/><circle cx='96' cy='20' r='9' fill='%23ff00cc'/><rect x='26' y='56' width='140' height='92' rx='16' stroke='%2300f5ff' stroke-width='5' fill='rgba(0,10,30,0.9)'/><circle cx='52' cy='88' r='7' fill='rgba(0,245,255,0.4)'/><circle cx='52' cy='112' r='7' fill='rgba(0,245,255,0.4)'/><circle cx='68' cy='100' r='7' fill='rgba(0,245,255,0.4)'/><rect x='82' y='66' width='68' height='46' rx='10' stroke='%23ff00cc' stroke-width='4' fill='rgba(255,0,204,0.06)'/><path d='M90 92 Q100 82 110 92 Q120 102 130 92' stroke='%23ff00cc' stroke-width='5' fill='none' stroke-linecap='round'/><circle cx='42' cy='75' r='11' stroke='%2300f5ff' stroke-width='4' fill='rgba(0,245,255,0.08)'/><text x='96' y='172' font-family='monospace' font-size='18' fill='rgba(0,245,255,0.35)' text-anchor='middle' letter-spacing='5'>YAKA</text></svg>`;
+    const manifest = {
+        name:"YAKA RADYO",short_name:"YAKA RADYO",
+        description:"Türkçe Cyberpunk Radio Terminal",
+        start_url:"./",display:"standalone",
+        background_color:"#06060f",theme_color:"#0a0a12",
+        orientation:"portrait-primary",
+        icons:[
+            {src:"data:image/svg+xml,"+encodeURIComponent(iconSvg192),sizes:"192x192",type:"image/svg+xml",purpose:"any maskable"},
+            {src:"data:image/svg+xml,"+encodeURIComponent(iconSvg192),sizes:"512x512",type:"image/svg+xml",purpose:"any maskable"}
+        ]
+    };
+    const blob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
+    document.getElementById('pwaManifest').href=URL.createObjectURL(blob);
+})();
+
+// ══════════════════════════════════════════════
+//  SERVICE WORKER
+// ══════════════════════════════════════════════
+if('serviceWorker' in navigator){
+    const sw=`const CACHE='yaka-v2';
+        self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./']))); self.skipWaiting();});
+        self.addEventListener('activate',e=>{e.waitUntil(clients.claim());});
+        self.addEventListener('fetch',e=>{
+            if(e.request.url.includes('radio-browser')||e.request.url.includes('stream')||e.request.url.includes('googleapis')||e.request.url.includes('cdnjs')) return;
+            e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>caches.match('./'))));
+        });`;
+    navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:'text/javascript'}))).catch(()=>{});
+}
+
+// ══════════════════════════════════════════════
+//  PWA INSTALL
+// ══════════════════════════════════════════════
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+    e.preventDefault(); deferredPrompt=e;
+    document.getElementById('installBanner').classList.add('show');
+});
+document.getElementById('installBtn').addEventListener('click',()=>{
+    if(deferredPrompt){
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(()=>{ deferredPrompt=null; document.getElementById('installBanner').classList.remove('show'); });
+    }
+});
+document.getElementById('dismissInstall').addEventListener('click',()=>{
+    document.getElementById('installBanner').classList.remove('show');
+});
+
+// ══════════════════════════════════════════════
+//  CLOCK
+// ══════════════════════════════════════════════
+const DAYS_TR = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+const MONTHS_TR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+
+function updateClock(){
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2,'0');
+    const m = String(now.getMinutes()).padStart(2,'0');
+    const s = String(now.getSeconds()).padStart(2,'0');
+    document.getElementById('clockTime').innerHTML =
+        `${h}<span class="clock-colon">:</span>${m}<span class="clock-colon">:</span>${s}`;
+    document.getElementById('clockDate').textContent =
+        `${DAYS_TR[now.getDay()]}  //  ${now.getDate()} ${MONTHS_TR[now.getMonth()]} ${now.getFullYear()}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ══════════════════════════════════════════════
+//  BACKGROUND ROTATION
+// ══════════════════════════════════════════════
+const bgList=[
+    'https://images.unsplash.com/photo-1515630278258-407f66498911?q=80&w=1400',
+    'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?q=80&w=1400',
+    'https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=1400'
+];
+let bgIdx=0;
+function cycleBg(){ bgIdx=(bgIdx+1)%bgList.length; document.getElementById('bgImg').style.backgroundImage=`url('${bgList[bgIdx]}')`; }
+cycleBg(); setInterval(cycleBg,30000);
+
+// ══════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════
+let toastTimer=null;
+function showToast(msg){
+    const t=document.getElementById('toast');
+    t.textContent=msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+// ══════════════════════════════════════════════
+//  SIGNAL STRIP
+// ══════════════════════════════════════════════
+const strip=document.getElementById('signalStrip');
+const SEG=42;
+for(let i=0;i<SEG;i++){const s=document.createElement('div');s.className='sig-seg';strip.appendChild(s);}
+let sigAnim=null;
+
+function setSegs(level){
+    const n=Math.floor(level/100*SEG);
+    strip.querySelectorAll('.sig-seg').forEach((s,i)=>{
+        s.classList.toggle('active',i<n);
+        s.classList.toggle('hot',i<n&&i>=Math.floor(n*0.78));
+    });
+    document.getElementById('progressFill').style.width=level+'%';
+}
+
+function idlePulse(){
+    setInterval(()=>{
+        if(!currentAudio||currentAudio.paused){
+            const v=(Math.sin(Date.now()/2200)*0.5+0.5)*28+4;
+            setSegs(v);
+            document.getElementById('progressPct').textContent='—';
+        }
+    },110);
+}
+idlePulse();
+
+function startSignalSim(bitrate){
+    clearInterval(sigAnim);
+    let base=Math.min(94,Math.max(44,(bitrate/320)*100));
+    let cur=base;
+    setSegs(cur); document.getElementById('progressPct').textContent=Math.round(cur)+'%';
+    sigAnim=setInterval(()=>{
+        if(!currentAudio) return;
+        cur=Math.max(36,Math.min(97,cur+(Math.random()-.5)*13));
+        setSegs(cur);
+        document.getElementById('progressPct').textContent=Math.round(cur)+'%';
+    },550);
+}
+
+// ══════════════════════════════════════════════
+//  VOLUME
+// ══════════════════════════════════════════════
+const volSlider=document.getElementById('volumeControl');
+const volVal=document.getElementById('volVal');
+volSlider.addEventListener('input',e=>{
+    volVal.textContent=Math.round(e.target.value*100)+'%';
+    if(currentAudio) currentAudio.volume=parseFloat(e.target.value);
+});
+const sv=localStorage.getItem('yakaVol');
+if(sv){volSlider.value=sv;volVal.textContent=Math.round(sv*100)+'%';}
+volSlider.addEventListener('change',()=>localStorage.setItem('yakaVol',volSlider.value));
+
+// ══════════════════════════════════════════════
+//  LISTEN TIMER
+// ══════════════════════════════════════════════
+let listenStart=null, listenInterval=null;
+function startListenTimer(){
+    listenStart=Date.now();
+    document.getElementById('listenTimer').style.display='inline';
+    listenInterval=setInterval(()=>{
+        const sec=Math.floor((Date.now()-listenStart)/1000);
+        const m=String(Math.floor(sec/60)).padStart(2,'0');
+        const s=String(sec%60).padStart(2,'0');
+        document.getElementById('listenTime').textContent=m+':'+s;
+    },1000);
+}
+function stopListenTimer(){
+    clearInterval(listenInterval);
+    document.getElementById('listenTimer').style.display='none';
+    document.getElementById('listenTime').textContent='00:00';
+}
+
+// ══════════════════════════════════════════════
+//  FAVORITES
+// ══════════════════════════════════════════════
+let favorites = JSON.parse(localStorage.getItem('yakaFavs')||'[]');
+let currentTab = 'all';
+
+function isFav(id){ return favorites.includes(String(id)); }
+function toggleFav(id, name){
+    id=String(id);
+    if(favorites.includes(id)){
+        favorites=favorites.filter(f=>f!==id);
+        showToast('💔 FAVORİDEN ÇIKARTILDI: '+name);
+    } else {
+        favorites.push(id);
+        showToast('💖 FAVORİYE EKLENDİ: '+name);
+    }
+    localStorage.setItem('yakaFavs', JSON.stringify(favorites));
+    updateFavCount();
+    renderRadios();
+}
+function updateFavCount(){
+    document.getElementById('favCount').textContent = favorites.length > 0 ? `(${favorites.length})` : '';
+}
+updateFavCount();
+
+function switchTab(tab){
+    currentTab = tab;
+    document.getElementById('tabAll').classList.toggle('active', tab==='all');
+    document.getElementById('tabFav').classList.toggle('active', tab==='fav');
+    renderRadios();
+}
+
+// ══════════════════════════════════════════════
+//  RADIO API
+// ══════════════════════════════════════════════
+const SERVERS=[
+    'https://de1.api.radio-browser.info/json',
+    'https://nl1.api.radio-browser.info/json',
+    'https://at1.api.radio-browser.info/json',
+    'https://fr1.api.radio-browser.info/json'
+];
+let srv=0, allStations=[], filteredStations=[], currentAudio=null, currentStation=null;
+let audioCtx=null, analyser=null, sourceNode=null;
+
+const radioContainer  = document.getElementById('radioListContainer');
+const searchInput     = document.getElementById('searchInput');
+const searchAddBtn    = document.getElementById('searchAddBtn');
+const radioSelect     = document.getElementById('radioSelect');
+const playSelectedBtn = document.getElementById('playSelectedBtn');
+const playBtn         = document.getElementById('playBtn');
+const stopBtn         = document.getElementById('stopBtn');
+const randomBtn       = document.getElementById('randomBtn');
+const nameEl          = document.getElementById('currentStationName');
+const statusEl        = document.getElementById('streamStatus');
+const bitrateEl       = document.getElementById('bitrateInfo');
+const countEl         = document.getElementById('resultCount');
+const liveDot         = document.getElementById('liveDot');
+const eqBars          = document.getElementById('eqBars');
+
+async function apiFetch(path){
+    for(let i=0;i<SERVERS.length;i++){
+        try{
+            const r=await fetch(SERVERS[srv]+path);
+            if(r.ok) return await r.json();
+        }catch(e){}
+        srv=(srv+1)%SERVERS.length;
+    }
+    throw new Error('API yok');
+}
+
+async function fetchRadios(){
+    try{
+        radioContainer.innerHTML='<div class="loading-msg"><div class="spinner"></div><br>RADYOLAR YÜKLENİYOR...</div>';
+        let s=await apiFetch('/stations/search?countrycode=TR&limit=200&order=clickcount&reverse=true');
+        let v=s.filter(x=>x.url&&x.url.startsWith('https://'));
+        if(v.length<30){
+            s=await apiFetch('/stations/search?countrycode=TR&limit=200&order=votes&reverse=true');
+            v=s.filter(x=>x.url&&x.url.startsWith('https://'));
+        }
+        const seen=new Set(); allStations=[];
+        for(const x of v){
+            const k=x.name.toLowerCase().trim();
+            if(!seen.has(k)&&x.name.length>2){
+                seen.add(k);
+                allStations.push({id:x.stationuuid||x.id,name:x.name,url:x.url_resolved||x.url,bitrate:x.bitrate||128});
+            }
+        }
+        filterRadios('');
+        showToast('📡 '+allStations.length+' RADYO YÜKLENDİ');
+    }catch(e){
+        radioContainer.innerHTML='<div class="loading-msg">⚠️ API BAĞLANTI HATASI<br><small>Sayfayı yenileyin veya VPN deneyin</small></div>';
+    }
+}
+
+async function searchAndAdd(){
+    const t=searchInput.value.trim(); if(!t) return;
+    searchAddBtn.innerHTML='<i class="fas fa-spinner fa-spin"></i> ARANIYOR...';
+    try{
+        const st=await apiFetch(`/stations/search?name=${encodeURIComponent(t)}&limit=20`);
+        const v=st.filter(x=>x.url&&x.url.startsWith('https://'));
+        if(!v.length){showToast('💀 RADYO BULUNAMADI!');return;}
+        let added=0;
+        for(const x of v){
+            if(!allStations.some(e=>e.name.toLowerCase()===(x.name||'').toLowerCase())&&x.name){
+                allStations.push({id:x.stationuuid||x.id,name:x.name,url:x.url_resolved||x.url,bitrate:x.bitrate||128});
+                added++;
+            }
+        }
+        if(added){filterRadios(searchInput.value);searchInput.value='';showToast('✅ '+added+' RADYO EKLENDİ!');}
+        else showToast('ℹ️ ZATEN LİSTEDE!');
+    }catch(e){showToast('⚠️ ARAMA HATASI!');}
+    finally{searchAddBtn.innerHTML='<i class="fas fa-plus"></i>&nbsp;ARA &amp; EKLE';}
+}
+
+function filterRadios(term){
+    const t=(term||'').toLowerCase().trim();
+    filteredStations=t?allStations.filter(s=>s.name.toLowerCase().includes(t)):[...allStations];
+    renderRadios(); updateSelect();
+    countEl.textContent=`${filteredStations.length} RADYO`;
+}
+
+function renderRadios(){
+    let list = currentTab==='fav'
+        ? allStations.filter(s=>isFav(s.id))
+        : filteredStations;
+
+    if(!list.length){
+        radioContainer.innerHTML=currentTab==='fav'
+            ? '<div class="loading-msg">💖 HENÜ FAVORİ YOK<br><small style="font-size:.6rem;letter-spacing:2px">Kalp ikonuna tıkla</small></div>'
+            : '<div class="loading-msg">🔍 RADYO BULUNAMADI</div>';
+        return;
+    }
+    radioContainer.innerHTML='';
+    list.forEach(s=>{
+        const c=document.createElement('div');
+        c.className='radio-card'+(currentStation?.id===s.id?' active':'');
+        const favd=isFav(s.id);
+        c.innerHTML=`<div class="card-icon">${esc(s.name.charAt(0).toUpperCase())}</div>
+            <div class="card-info">
+                <div class="card-name">${esc(s.name)}</div>
+                <div class="card-bitrate">${s.bitrate} kbps</div>
+            </div>
+            <button class="fav-btn ${favd?'faved':''}" data-id="${esc(String(s.id))}" data-name="${esc(s.name)}" title="Favori">
+                <i class="fas fa-heart"></i>
+            </button>`;
+        c.querySelector('.fav-btn').addEventListener('click',e=>{
+            e.stopPropagation();
+            toggleFav(e.currentTarget.dataset.id, e.currentTarget.dataset.name);
+        });
+        c.addEventListener('click',()=>playStation(s));
+        radioContainer.appendChild(c);
+    });
+}
+
+function updateSelect(){
+    radioSelect.innerHTML='<option value="">📡 RADYO SEÇ</option>';
+    filteredStations.forEach(s=>{
+        const o=document.createElement('option');
+        o.value=s.id; o.textContent=`${s.name} (${s.bitrate} kbps)`;
+        radioSelect.appendChild(o);
+    });
+}
+
+// ══════════════════════════════════════════════
+//  AUDIO CONTEXT & VISUALIZER
+// ══════════════════════════════════════════════
+function initAudioContext(audioEl){
+    try{
+        if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+        if(sourceNode){ try{sourceNode.disconnect();}catch(e){} }
+        analyser=audioCtx.createAnalyser();
+        analyser.fftSize=256;
+        analyser.smoothingTimeConstant=0.82;
+        sourceNode=audioCtx.createMediaElementSource(audioEl);
+        sourceNode.connect(analyser);
+        analyser.connect(audioCtx.destination);
+        if(audioCtx.state==='suspended') audioCtx.resume();
+    }catch(e){ analyser=null; }
+}
+
+const vizCanvas=document.getElementById('visualizerCanvas');
+const vizCtx=vizCanvas.getContext('2d');
+let vizMode='bars'; // bars | wave | circle
+let vizRAF=null;
+
+document.getElementById('vizModeBtn').addEventListener('click',()=>{
+    const modes=['bars','wave','circle'];
+    vizMode=modes[(modes.indexOf(vizMode)+1)%modes.length];
+    document.getElementById('vizModeBtn').textContent=vizMode.toUpperCase();
+});
+
+function resizeViz(){
+    vizCanvas.width=vizCanvas.offsetWidth*window.devicePixelRatio;
+    vizCanvas.height=vizCanvas.offsetHeight*window.devicePixelRatio;
+    vizCtx.scale(window.devicePixelRatio,window.devicePixelRatio);
+}
+resizeViz();
+window.addEventListener('resize',resizeViz);
+
+function drawVisualizer(){
+    vizRAF=requestAnimationFrame(drawVisualizer);
+    const W=vizCanvas.offsetWidth, H=vizCanvas.offsetHeight;
+    vizCtx.clearRect(0,0,W,H);
+
+    let data;
+    if(analyser && currentAudio && !currentAudio.paused){
+        const buf=new Uint8Array(analyser.frequencyBinCount);
+        if(vizMode==='wave') analyser.getByteTimeDomainData(buf);
+        else analyser.getByteFrequencyData(buf);
+        data=buf;
+    }
+
+    if(vizMode==='bars'){
+        const bars=data?Math.min(64,data.length):48;
+        const bw=(W-bars*2)/bars;
+        for(let i=0;i<bars;i++){
+            let v=data ? data[i]/255 : (Math.sin(Date.now()/800+i*0.3)*0.5+0.5)*0.18;
+            const h=v*H*0.92;
+            const x=i*(bw+2);
+            const hot=v>0.65;
+            const grad=vizCtx.createLinearGradient(0,H,0,H-h);
+            grad.addColorStop(0, hot?'rgba(255,0,204,0.9)':'rgba(0,245,255,0.9)');
+            grad.addColorStop(1, hot?'rgba(255,0,204,0.2)':'rgba(0,245,255,0.2)');
+            vizCtx.fillStyle=grad;
+            vizCtx.beginPath();
+            vizCtx.roundRect(x,H-h,bw,h,2);
+            vizCtx.fill();
+        }
+    } else if(vizMode==='wave'){
+        vizCtx.beginPath();
+        vizCtx.strokeStyle='rgba(0,245,255,0.7)';
+        vizCtx.lineWidth=1.5;
+        const step=(W/(data?data.length:128));
+        for(let i=0;i<(data?data.length:128);i++){
+            const v=data?(data[i]/128)-1:(Math.sin(Date.now()/600+i*0.15)*0.25);
+            const x=i*step;
+            const y=(v*H*0.45)+(H/2);
+            i===0?vizCtx.moveTo(x,y):vizCtx.lineTo(x,y);
+        }
+        vizCtx.stroke();
+        // glow
+        vizCtx.shadowColor='rgba(0,245,255,0.4)';
+        vizCtx.shadowBlur=8;
+        vizCtx.stroke();
+        vizCtx.shadowBlur=0;
+    } else if(vizMode==='circle'){
+        const cx=W/2, cy=H/2, r=Math.min(W,H)*0.25;
+        const bars=data?Math.min(64,data.length):48;
+        for(let i=0;i<bars;i++){
+            let v=data?data[i]/255:(Math.sin(Date.now()/700+i*0.25)*0.5+0.5)*0.2;
+            const angle=(i/bars)*Math.PI*2 - Math.PI/2;
+            const len=v*(Math.min(W,H)*0.22);
+            const x1=cx+Math.cos(angle)*r;
+            const y1=cy+Math.sin(angle)*r;
+            const x2=cx+Math.cos(angle)*(r+len);
+            const y2=cy+Math.sin(angle)*(r+len);
+            const hot=v>0.6;
+            vizCtx.strokeStyle=hot?'rgba(255,0,204,0.85)':'rgba(0,245,255,0.75)';
+            vizCtx.lineWidth=2;
+            vizCtx.beginPath();
+            vizCtx.moveTo(x1,y1); vizCtx.lineTo(x2,y2);
+            vizCtx.stroke();
+        }
+        // center circle
+        vizCtx.beginPath();
+        vizCtx.arc(cx,cy,r,0,Math.PI*2);
+        vizCtx.strokeStyle='rgba(0,245,255,0.18)';
+        vizCtx.lineWidth=1;
+        vizCtx.stroke();
+    }
+}
+drawVisualizer();
+
+// ══════════════════════════════════════════════
+//  PARTICLES
+// ══════════════════════════════════════════════
+const pCanvas=document.getElementById('particleCanvas');
+const pCtx=pCanvas.getContext('2d');
+let particles=[];
+
+function resizeParticles(){
+    pCanvas.width=window.innerWidth;
+    pCanvas.height=window.innerHeight;
+}
+resizeParticles();
+window.addEventListener('resize',resizeParticles);
+
+function spawnParticle(){
+    particles.push({
+        x: Math.random()*pCanvas.width,
+        y: Math.random()*pCanvas.height,
+        r: Math.random()*1.5+0.3,
+        vx:(Math.random()-.5)*0.3,
+        vy:-Math.random()*0.5-0.1,
+        life:1,
+        decay:Math.random()*0.003+0.001,
+        color: Math.random()>0.5 ? '0,245,255' : '255,0,204'
+    });
+}
+
+function animParticles(){
+    requestAnimationFrame(animParticles);
+    pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
+    if(Math.random()<0.35) spawnParticle();
+    particles=particles.filter(p=>p.life>0);
+    for(const p of particles){
+        p.x+=p.vx; p.y+=p.vy;
+        p.life-=p.decay;
+        pCtx.beginPath();
+        pCtx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        pCtx.fillStyle=`rgba(${p.color},${p.life*0.6})`;
+        pCtx.fill();
+    }
+}
+animParticles();
+
+// ══════════════════════════════════════════════
+//  PLAY / STOP
+// ══════════════════════════════════════════════
+function playStation(s){
+    if(currentAudio){currentAudio.pause();currentAudio=null;}
+    clearInterval(sigAnim);
+    stopListenTimer();
+    currentStation=s;
+    nameEl.textContent=s.name;
+    bitrateEl.textContent=s.bitrate+' kbps';
+    statusEl.textContent='BAĞLANIYOR...';
+    liveDot.style.display='none';
+    eqBars.classList.remove('active');
+    setSegs(15); document.getElementById('progressPct').textContent='...';
+
+    currentAudio=new Audio(s.url);
+    currentAudio.crossOrigin='anonymous';
+    currentAudio.volume=parseFloat(volSlider.value);
+
+    currentAudio.addEventListener('playing',()=>{
+        statusEl.textContent='YAYINDA';
+        liveDot.style.display='inline-block';
+        eqBars.classList.add('active');
+        startSignalSim(s.bitrate);
+        startListenTimer();
+        try{ initAudioContext(currentAudio); } catch(e){}
+        showToast('▶ '+s.name);
+    });
+    currentAudio.addEventListener('error',()=>{
+        statusEl.textContent='BAĞLANTI HATASI';
+        liveDot.style.display='none';
+        eqBars.classList.remove('active');
+        setSegs(0); document.getElementById('progressPct').textContent='—';
+        stopListenTimer();
+        showToast('⚠️ BAĞLANTI HATASI');
+    });
+    currentAudio.play().catch(()=>{
+        statusEl.textContent='BAĞLANTI HATASI';
+        setSegs(0); document.getElementById('progressPct').textContent='—';
+    });
+    renderRadios();
+}
+
+function stopRadio(){
+    if(currentAudio){currentAudio.pause();currentAudio=null;}
+    clearInterval(sigAnim);
+    stopListenTimer();
+    statusEl.textContent='DURDURULDU';
+    liveDot.style.display='none';
+    eqBars.classList.remove('active');
+    setSegs(0); document.getElementById('progressPct').textContent='—';
+    renderRadios();
+    showToast('⏹ DURDURULDU');
+}
+
+function playRandom(){
+    if(!filteredStations.length) return;
+    const idx=Math.floor(Math.random()*filteredStations.length);
+    playStation(filteredStations[idx]);
+}
+
+function playNext(){
+    if(!filteredStations.length) return;
+    if(!currentStation){ playStation(filteredStations[0]); return; }
+    const idx=filteredStations.findIndex(s=>s.id===currentStation.id);
+    playStation(filteredStations[(idx+1)%filteredStations.length]);
+}
+
+function esc(s){return(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]||m));}
+
+// ══════════════════════════════════════════════
+//  KEYBOARD SHORTCUTS
+// ══════════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+    if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT') return;
+    switch(e.key){
+        case ' ':
+            e.preventDefault();
+            if(currentAudio&&!currentAudio.paused) stopRadio();
+            else if(currentStation) playStation(currentStation);
+            else playRandom();
+            break;
+        case 's': case 'S':
+            stopRadio(); break;
+        case 'r': case 'R':
+            playRandom(); break;
+        case 'n': case 'N':
+            playNext(); break;
+        case 'ArrowUp':
+            e.preventDefault();
+            volSlider.value=Math.min(1,parseFloat(volSlider.value)+0.05);
+            volSlider.dispatchEvent(new Event('input'));
+            showToast('🔊 SES: '+volVal.textContent);
+            break;
+        case 'ArrowDown':
+            e.preventDefault();
+            volSlider.value=Math.max(0,parseFloat(volSlider.value)-0.05);
+            volSlider.dispatchEvent(new Event('input'));
+            showToast('🔉 SES: '+volVal.textContent);
+            break;
+        case 'f': case 'F':
+            if(currentStation){ toggleFav(currentStation.id,currentStation.name); }
+            break;
+    }
+});
+
+// ══════════════════════════════════════════════
+//  EVENTS
+// ══════════════════════════════════════════════
+searchInput.addEventListener('input',e=>filterRadios(e.target.value));
+searchAddBtn.addEventListener('click',searchAndAdd);
+playSelectedBtn.addEventListener('click',()=>{
+    const id=radioSelect.value;
+    if(id){const s=filteredStations.find(x=>x.id===id);if(s)playStation(s);}
+    else showToast('📻 LÜTFEN BİR RADYO SEÇİN!');
+});
+playBtn.addEventListener('click',()=>{
+    if(currentAudio&&!currentAudio.paused) return;
+    if(currentStation) playStation(currentStation);
+    else if(filteredStations[0]) playStation(filteredStations[0]);
+    else showToast('📻 BİR RADYO SEÇİN!');
+});
+stopBtn.addEventListener('click',stopRadio);
+randomBtn.addEventListener('click',playRandom);
+
+fetchRadios();
+</script>
+</body>
+</html>
